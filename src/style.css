@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@layer base {
+  .Container {
+    @apply p-5 md:p-10;
+  }
+
+  .container-x {
+    @apply px-5 md:px-10;
+  }
+
+  .title-section {
+    @apply text-4xl lg:text-7xl capitalize;
+  }
+}

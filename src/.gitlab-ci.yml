@@ -1,0 +1,87 @@
+stages:
+  - build_test
+  - deploy_test
+  - build_prod
+  - deploy_prod
+
+# deploy:
+#   stage: deploy
+#   only:
+#     - develop # Run this job only on the master branch, adjust as needed
+#   script:
+#     # Install dependencies and build Angular project
+#     - npm install
+#     - ng build
+
+#     # (Optional for Apache Server) Copy .htaccess file to dist folder
+#     - cp .htaccess dist/atendimentu-frontend/browser/
+
+#     # Get previous commit sha
+#     - PREVIOUS_COMMIT_SHA=$(git rev-parse HEAD^)
+
+#     # Deploy to cPanel via SSH
+
+#     # Rename old public_html_commit & create new public html
+#     - sshpass -p "$CPANEL_PWD" ssh -o StrictHostKeyChecking=no -p1512 $CPANEL_USER@$CPANEL_HOST "mv /home/dev06/public_html /home/dev06/public_html_$PREVIOUS_COMMIT_SHA && mkdir /home/dev06/public_html"
+
+#     # Copy dist folder to new public_html folder
+#     - sshpass -p "$CPANEL_PWD" scp -o StrictHostKeyChecking=no -P1512 -r dist/atendimentu-frontend/browser/* $CPANEL_USER@$CPANEL_HOST:/home/dev06/public_html
+
+#   environment:
+#     name: develop
+
+build_test:
+  stage: build_test
+  only:
+    - develop # Run this job only on the develop branch, adjust as needed
+  script:
+    # Install dependencies and build Angular project
+    - npm install
+    - ng build
+
+    # (Optional for Apache Server) Copy .htaccess file to dist folder
+    - cp .htaccess dist/atendimentu-frontend/browser/
+
+    # Get previous commit sha
+    - CURRENT_COMMIT_SHA=$(git rev-parse HEAD)
+
+    # Build Docker image
+    - docker build -t $TIC_DOCKER_HOST/$TIC_DOCKER_USERNAME/$PROJECT_NAME:beta-$CURRENT_COMMIT_SHA .
+    - docker login -u $TIC_DOCKER_USERNAME -p $TIC_DOCKER_PWD $TIC_DOCKER_HOST
+    - docker push $TIC_DOCKER_HOST/$TIC_DOCKER_USERNAME/$PROJECT_NAME:beta-$CURRENT_COMMIT_SHA
+
+deploy_test:
+  stage: deploy_test
+  script:
+    - CURRENT_COMMIT_SHA=$(git rev-parse HEAD)
+    - docker run caprover/cli-caprover:2.3.0 caprover deploy --caproverUrl $TIC_CAPROVER_URL --caproverPassword $TIC_CAPROVER_PWD --caproverApp $PROJECT_NAME_DEMO --imageName $TIC_DOCKER_HOST/$TIC_DOCKER_USERNAME/$PROJECT_NAME:beta-$CURRENT_COMMIT_SHA
+  only:
+    - develop
+
+build_prod:
+  stage: build_prod
+  only:
+    - main # Run this job only on the main branch, adjust as needed
+  script:
+    # Install dependencies and build Angular project
+    - npm install
+    - ng build
+
+    # (Optional for Apache Server) Copy .htaccess file to dist folder
+    - cp .htaccess dist/atendimentu-frontend/browser/
+
+    # Get previous commit sha
+    - CURRENT_COMMIT_SHA=$(git rev-parse HEAD)
+
+    # Build Docker image
+    - docker build -t $TIC_DOCKER_HOST/$TIC_DOCKER_USERNAME/$PROJECT_NAME:stable-$CURRENT_COMMIT_SHA .
+    - docker login -u $TIC_DOCKER_USERNAME -p $TIC_DOCKER_PWD $TIC_DOCKER_HOST
+    - docker push $TIC_DOCKER_HOST/$TIC_DOCKER_USERNAME/$PROJECT_NAME:stable-$CURRENT_COMMIT_SHA
+
+deploy_prod:
+  stage: deploy_prod
+  script:
+    - CURRENT_COMMIT_SHA=$(git rev-parse HEAD)
+    - docker run caprover/cli-caprover:2.3.0 caprover deploy --caproverUrl $CAPROVER_URL --caproverPassword $CAPROVER_PWD --caproverApp $PROJECT_NAME --imageName $TIC_DOCKER_HOST/$TIC_DOCKER_USERNAME/$PROJECT_NAME:stable-$CURRENT_COMMIT_SHA
+  only:
+    - main
